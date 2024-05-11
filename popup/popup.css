@@ -1,0 +1,13 @@
+.spinner {
+    border: 2px solid rgba(255, 255, 255, 0.3); /* White border with transparency */
+    border-top: 2px solid red; /* White top border */
+    border-radius: 50%; /* Circle shape */
+    width: 15px; /* Width of the spinner */
+    height: 15px; /* Height of the spinner */
+    animation: spin 1s linear infinite; /* Spin animation */
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); } /* Start at 0 degrees */
+    100% { transform: rotate(360deg); } /* End at 360 degrees (full circle) */
+}
