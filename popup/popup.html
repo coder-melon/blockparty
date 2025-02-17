@@ -26,12 +26,14 @@
 
                 <!-- Button to start the blocking process -->
                 <button id="startButton" class="btn btn-danger mb-3 d-block w-100">Start Blocking</button>
+                <button id="stopButton" class="btn btn-dark mb-3 d-block w-100">Stop Blocking</button>
 
                 <div id="progressTab">
                     <div id="taskActive" style="display: none; text-align: center;">
                         <p style="color: red; font-weight: bold;">Block party in-progress; do not close this tab.</p>
                         <div style="display: flex; justify-content: center;">
                             <div class="spinner"></div>
+                            <br/>
                         </div>
                     </div>
 
@@ -40,17 +42,17 @@
                     <p id="blockProgress"></p>
                 </div>
 
-                <!-- Button to toggle configuration tab -->
-                <button id="configButton" class="btn btn-primary mb-3 d-block w-100" style="padding: 5px 10px; font-size: 14px;">Configuration (optional)</button>
+                <!-- Button to toggle settings tab -->
+                <button id="settingsButton" class="btn btn-primary mb-3 d-block w-100" style="padding: 5px 10px; font-size: 14px;">Settings</button>
 
-                <!-- Configuration Tab -->
-                <div id="configTab" style="display: none;">
+                <!-- Settings Tab -->
+                <div id="settingsTab" style="display: none;">
                     <label for="sleepTimeInput">Sleep Time (seconds)</label>
                     <p class="form-text text-muted">The period of time to pause after every 10 blocks to avoid anti-bot measures. The default is 60 seconds.</p>
                     <input type="number" id="sleepTimeInput" class="form-control mb-3" placeholder="Enter Sleep Time" value="60">
 
                     <button id="resetButton" class="btn btn-dark mb-3 d-block w-100" style="padding: 5px 10px; font-size: 14px;">I'm stuck 🥺</button>
-                    <p class="form-text text-muted">If you don't see any progress in over 2-3 minutes, use this button and start again.</p>
+                    <p class="form-text text-muted">If you don't see any progress in over 2-3 minutes, use this button to start again.</p>
                 </div>
             </div>
         </div>

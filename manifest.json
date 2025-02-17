@@ -1,8 +1,8 @@
 {
     "manifest_version": 3,
     "name": "Block Party",
-    "version": "0.0.2",
-    "description": "Chrome extension to start blocking users on Instagram.",
+    "version": "1.0.0",
+    "description": "Block users on Instagram in bulk.",
     "permissions": [
         "cookies",
         "declarativeContent",

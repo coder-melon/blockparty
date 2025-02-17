@@ -2,10 +2,11 @@
 const userIdInput = document.getElementById('userIdInput');
 const sleepTimeInput = document.getElementById('sleepTimeInput');
 const taskActiveTab = document.getElementById('taskActive');
-const configTab = document.getElementById('configTab');
+const settingsTab = document.getElementById('settingsTab');
 const errorTab = document.getElementById('errorTab');
 const startButton = document.getElementById('startButton');
-const configButton = document.getElementById("configButton");
+const stopButton = document.getElementById('stopButton');
+const settingsButton = document.getElementById("settingsButton");
 
 // Defaults
 let username = "chopping.block2024";
@@ -18,7 +19,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     if (message.action === 'backgroundTaskActive') {
         backgroundTaskActive();
     } else if (message.action === 'backgroundTaskInactive') {
-        backgroundTaskInactive();
+        stopActivity();
     }
     if (message.action === 'updateListProgress') {
         document.getElementById('listProgress').textContent = message.progressText;
@@ -27,23 +28,36 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     }
 });
 
+document.addEventListener('DOMContentLoaded', function () {
+    // Retrieve saved progress from chrome.storage and set them
+    chrome.storage.sync.get(["listProgress", "blockProgress"], function(result) {
+        if (result.listProgress) {
+            document.getElementById("listProgress").textContent = result.listProgress;
+        }
+
+        if (result.blockProgress) {
+            document.getElementById("blockProgress").textContent = result.blockProgress;
+        }
+    });
+});
+
 // Reset UI
-document.getElementById('configTab').addEventListener('transitionend', function () {
+document.getElementById('settingsTab').addEventListener('transitionend', function () {
     const resetButton = document.getElementById('resetButton');
     if (resetButton && !resetButton.dataset.listenerAdded) {
         resetButton.addEventListener('click', function () {
-            backgroundTaskInactive();
+            stopActivity();
         });
         resetButton.dataset.listenerAdded = true; // Prevent multiple listeners
     }
 });
 
-// Function to toggle visibility of the configuration tab
-configButton.addEventListener('click', function () {
-    if (configTab.style.display === 'none') {
-        configTab.style.display = 'block';
+// Function to toggle visibility of the settings tab
+settingsButton.addEventListener('click', function () {
+    if (settingsTab.style.display === 'none') {
+        settingsTab.style.display = 'block';
     } else {
-        configTab.style.display = 'none';
+        settingsTab.style.display = 'none';
     }
 });
 
@@ -65,6 +79,10 @@ startButton.addEventListener('click', async function () {
         userId: userId,
         sleepTime: sleepTimeInSeconds
     });
+});
+
+stopButton.addEventListener('click', async function () {
+    stopActivity();
 });
 
 // Function to update userId variable when input changes
@@ -99,14 +117,19 @@ async function backgroundTaskActive() {
 }
 
 // Function to enable the start button and set active to false
-async function backgroundTaskInactive() {
+async function stopActivity() {
     startButton.disabled = false;
     taskActiveTab.style.display = 'none';
-    configTab.style.display = 'none';
+    settingsTab.style.display = 'none';
     errorTab.style.display = 'none';
     document.getElementById('listProgress').textContent = "";
     document.getElementById('blockProgress').textContent = "";
     document.getElementById('errorMessage').textContent = "";
+
+    // Send a message to the background script
+    chrome.runtime.sendMessage({
+        action: 'stopBlockingProcess'
+    });
 }
 
 // Function to display error message

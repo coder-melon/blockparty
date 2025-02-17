@@ -80,6 +80,19 @@ chrome.runtime.onMessage.addListener(async function (message, sender, sendRespon
         chrome.storage.sync.set({ "jobActive": false }, function () { console.log('BackgroundTask = Complete') });
         chrome.runtime.sendMessage({ action: 'backgroundTaskInactive' });
     }
+
+    if (message.action === 'stopBlockingProcess') {
+        // Stop the process by setting jobActive to false
+        await chrome.storage.sync.set({ "jobActive": false });
+        await chrome.storage.sync.set({ "listProgress": "" });
+        await chrome.storage.sync.set({ "blockProgress": "" });
+
+        // Clear the interval if it's active
+        if (activityCheckInterval) {
+            clearInterval(activityCheckInterval);
+            console.log("Activity check interval cleared.");
+        }
+    }
 });
 
 // Function to start blocking process
@@ -98,6 +111,8 @@ function updateProgressOnList(progressText) {
         chrome.runtime.sendMessage({ action: 'updateListProgress', progressText: progressText });
         lastActivityTime = Date.now();
     }
+
+    chrome.storage.sync.set({ "listProgress": progressText });
 }
 
 function updateProgressOnBlock(progressText) {
@@ -105,6 +120,8 @@ function updateProgressOnBlock(progressText) {
         chrome.runtime.sendMessage({ action: 'updateBlockProgress', progressText: progressText });
         lastActivityTime = Date.now();
     }
+
+    chrome.storage.sync.set({ "blockProgress": progressText });
 }
 
 function sleep(a) {
@@ -122,32 +139,44 @@ function afterUrlGenerator(a, userId) {
 }
 
 async function populateBlockList(userId, initialURL, blockList, getFollowCounter, scrollCicle) {
+    console.log(`%c Generating block list...`, "color: #bada55;font-size: 20px;");
+
     for (let doNext = true; doNext;) {
+        // Check jobActive flag
+        const storage = await chrome.storage.sync.get("jobActive");
+        if (!storage.jobActive) {
+            console.log("Stopping populateBlockList process...");
+            break; // Exit the loop if the task is inactive
+        }
+
+        updateProgressOnList(`Generating block list...`);
+
         let data;
         try {
             data = await fetch(initialURL).then((a) => a.json());
         } catch (error) {
             continue;
         }
+
         doNext = data.data.user.edge_follow.page_info.has_next_page;
         initialURL = afterUrlGenerator(data.data.user.edge_follow.page_info.end_cursor, userId);
         getFollowCounter += data.data.user.edge_follow.edges.length;
+
         data.data.user.edge_follow.edges.forEach((edge) => {
             blockList.push({
                 id: edge.node.id,
                 username: edge.node.username
             });
         });
-        console.log(`%c Generating block list...`, "color: #bada55;font-size: 20px;");
-        updateProgressOnList(`Generating block list...`);
-        await sleep(Math.floor(400 * Math.random()) + 1000);
+
         scrollCicle++;
         if (scrollCicle > 6) {
             scrollCicle = 0;
-            console.log("Sleeping 10 secs to prevent getting temp blocked.");
-            await sleep(10000);
+            console.log("Sleeping 3 secs to prevent getting temp blocked.");
+            await sleep(3000);
         }
     }
+
     console.log(`${getFollowCounter} followers available to block.`);
     updateProgressOnList(`${getFollowCounter} followers available to block.`);
 
@@ -157,10 +186,19 @@ async function populateBlockList(userId, initialURL, blockList, getFollowCounter
 async function startBlocking(blockList, sleepTime) {
     console.log(`%c Starting block party... 🎉`, "color: #bada55;font-size: 20px;");
     updateProgressOnBlock("Starting block party... 🎉");
+
     let c = Math.floor,
         a = 0,
         b = 0;
+
     for (let d of blockList) {
+        // Check if jobActive is false to stop the process
+        const storage = await chrome.storage.sync.get("jobActive");
+        if (!storage.jobActive) {
+            console.log("Blocking process stopped by user.");
+            break;
+        }
+
         try {
             await fetch(blockUserUrlGenerator(d.id), {
                 headers: {
@@ -177,15 +215,24 @@ async function startBlocking(blockList, sleepTime) {
 
         await sleep(c(2e3 * Math.random()) + 4e3);
         a++;
+
         if (11 <= ++b) {
             console.log("Sleeping to prevent getting temp blocked.");
             b = 0;
             await sleep(sleepTime);
         }
+
         updateProgressOnBlock(`Blocked ${d.username} - ${a}/${blockList.length}`);
         console.log(`Blocked ${d.username} - ${a}/${blockList.length}`);
-
     }
-    console.log("%c Block party complete!", "color: #bada55;font-size: 20px;");
-    updateProgressOnBlock("Block party complete! 🎉");
+
+    const storage = await chrome.storage.sync.get("jobActive");
+    if (storage.jobActive) {
+        console.log("%c Block party complete!", "color: #bada55;font-size: 20px;");
+        updateProgressOnBlock("Block party complete! 🎉");
+    }
+    else {
+        console.log("%c Block party stopped!", "color:rgb(234, 84, 76);font-size: 20px;");
+    }
+
 };
