@@ -6,7 +6,6 @@ const configTab = document.getElementById('configTab');
 const errorTab = document.getElementById('errorTab');
 const startButton = document.getElementById('startButton');
 const configButton = document.getElementById("configButton");
-const resetButton = document.getElementById('resetButton');
 
 // Defaults
 let username = "chopping.block2024";
@@ -29,8 +28,14 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 });
 
 // Reset UI
-resetButton.addEventListener('click', function () {
-    backgroundTaskInactive();
+document.getElementById('configTab').addEventListener('transitionend', function () {
+    const resetButton = document.getElementById('resetButton');
+    if (resetButton && !resetButton.dataset.listenerAdded) {
+        resetButton.addEventListener('click', function () {
+            backgroundTaskInactive();
+        });
+        resetButton.dataset.listenerAdded = true; // Prevent multiple listeners
+    }
 });
 
 // Function to toggle visibility of the configuration tab
