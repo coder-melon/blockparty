@@ -1,14 +1,16 @@
 {
     "manifest_version": 3,
     "name": "Block Party",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Chrome extension to start blocking users on Instagram.",
     "permissions": [
         "cookies",
         "declarativeContent",
         "storage"
     ],
-    "host_permissions": ["*://*.instagram.com/*"],
+    "host_permissions": [
+        "*://*.instagram.com/*"
+    ],
     "action": {
         "default_popup": "popup/popup.html",
         "default_title": "Block Party"
@@ -18,8 +20,12 @@
     },
     "content_scripts": [
         {
-            "matches": ["*://*.instagram.com/*"],
-            "js": ["scripts/popup.js"]
+            "js": [
+                "popup/popup.js"
+            ],
+            "matches": [
+                "*://*.instagram.com/*"
+            ]
         }
     ],
     "icons": {

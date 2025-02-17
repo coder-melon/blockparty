@@ -1,10 +1,20 @@
-// Get default userId and sleepTime values
-const defaultUserId = "34724519488"; // blockout.2024
-const defaultSleepTime = 60000; // 60000 = 1 minute. 1 second = 1000 ms.
 let lastActivityTime = Date.now();
 let activityCheckInterval;
+let csrfToken;
+let popupOpen;
 
 chrome.action.disable();
+
+chrome.cookies.get({ url: 'https://www.instagram.com', name: 'csrftoken' },
+    function (cookie) {
+        if (cookie) {
+            csrfToken = cookie.value;
+        }
+        else {
+            console.error('Could not get csrftoken cookie!');
+        }
+    }
+);
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.declarativeContent.onPageChanged.removeRules(() => {
@@ -21,6 +31,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.runtime.onConnect.addListener(async function (port) {
+    popupOpen = true;
     if (port.name === "popup") {
         const data = await chrome.storage.sync.get("jobActive");
         if (data.jobActive) {
@@ -30,9 +41,9 @@ chrome.runtime.onConnect.addListener(async function (port) {
             chrome.runtime.sendMessage({ action: 'backgroundTaskInactive' });
         }
 
-        port.onDisconnect.addListener(function() {
-            console.log("Popup closed.")
-            chrome.runtime.sendMessage({ action: 'backgroundTaskInactive' });
+        port.onDisconnect.addListener(function () {
+            console.log("Popup closed.");
+            popupOpen = false;
         });
     }
 });
@@ -41,12 +52,15 @@ chrome.runtime.onConnect.addListener(async function (port) {
 chrome.runtime.onMessage.addListener(async function (message, sender, sendResponse) {
     if (message.action === 'startBlockingProcess') {
         // Send message indicating that the background task is active
-        chrome.storage.sync.set({ "jobActive": true }, function () { console.log('BackgroundTask = Active')});
+        await chrome.storage.sync.set({ "jobActive": true });
         chrome.runtime.sendMessage({ action: 'backgroundTaskActive' });
 
         // Retrieve user input values from the message
-        const userId = message.userId || defaultUserId;
-        const sleepTime = message.sleepTime || defaultSleepTime;
+        const userId = message.userId;
+        const sleepTime = (message.sleepTime*1000);
+
+        console.log(`userid = ${userId}`);
+        console.log(`sleepTime = ${sleepTime}`);
 
         // Start an interval to check for inactivity
         activityCheckInterval = setInterval(() => {
@@ -68,17 +82,6 @@ chrome.runtime.onMessage.addListener(async function (message, sender, sendRespon
     }
 });
 
-let csrfToken;
-chrome.cookies.get({ url: 'https://www.instagram.com', name: 'csrftoken' },
-    function (cookie) {
-        if (cookie) {
-            csrfToken = cookie.value;
-        }
-        else {
-            console.log('Can\'t get cookie! Check the name!');
-        }
-    });
-
 // Function to start blocking process
 async function startBlockingProcess(userId, sleepTime) {
     let initialURL = `https://www.instagram.com/graphql/query/?query_hash=3dec7e2c57367ef3da3d987d89f9dbc8&variables={"id":"${userId}","include_reel":"false","fetch_mutual":"false","first":"24"}`;
@@ -91,22 +94,17 @@ async function startBlockingProcess(userId, sleepTime) {
 }
 
 function updateProgressOnList(progressText) {
-    // Send message to popup script to update list progress
-    chrome.runtime.sendMessage({ action: 'updateListProgress', progressText: progressText });
-    lastActivityTime = Date.now();
+    if (popupOpen) {
+        chrome.runtime.sendMessage({ action: 'updateListProgress', progressText: progressText });
+        lastActivityTime = Date.now();
+    }
 }
 
 function updateProgressOnBlock(progressText) {
-    // Send message to popup script to update block progress
-    chrome.runtime.sendMessage({ action: 'updateBlockProgress', progressText: progressText });
-    lastActivityTime = Date.now();
-}
-
-async function getCookie(b) {
-    let cookies = await chrome.cookies.getAll({ domain: "https://www.instagram.com" });
-    let c = `; ${cookies}`,
-        a = c.split(`; ${b}=`);
-    if (2 === a.length) return a.pop().split(";").shift();
+    if (popupOpen) {
+        chrome.runtime.sendMessage({ action: 'updateBlockProgress', progressText: progressText });
+        lastActivityTime = Date.now();
+    }
 }
 
 function sleep(a) {
@@ -123,7 +121,7 @@ function afterUrlGenerator(a, userId) {
     return `https://www.instagram.com/graphql/query/?query_hash=3dec7e2c57367ef3da3d987d89f9dbc8&variables={"id":"${userId}","include_reel":"false","fetch_mutual":"false","first":"24","after":"${a}"}`;
 }
 
-populateBlockList = async (userId, initialURL, blockList, getFollowCounter, scrollCicle) => {
+async function populateBlockList(userId, initialURL, blockList, getFollowCounter, scrollCicle) {
     for (let doNext = true; doNext;) {
         let data;
         try {
@@ -156,9 +154,9 @@ populateBlockList = async (userId, initialURL, blockList, getFollowCounter, scro
     return blockList;
 };
 
-startBlocking = async (blockList, sleepTime) => {
-    console.log(`%c Starting block party 🎉...`, "color: #bada55;font-size: 20px;");
-    updateProgressOnBlock("Starting block party 🎉...");
+async function startBlocking(blockList, sleepTime) {
+    console.log(`%c Starting block party... 🎉`, "color: #bada55;font-size: 20px;");
+    updateProgressOnBlock("Starting block party... 🎉");
     let c = Math.floor,
         a = 0,
         b = 0;
@@ -176,7 +174,17 @@ startBlocking = async (blockList, sleepTime) => {
         } catch (e) {
             console.log(e);
         }
-        await sleep(c(2e3 * Math.random()) + 4e3), a++, 5 <= ++b && (console.log("Sleeping to prevent getting temp blocked."), b = 0, await sleep(sleepTime)), updateProgressOnBlock(`Blocked ${d.username} - ${a}/${blockList.length}`); console.log(`Blocked ${d.username} - ${a}/${blockList.length}`);
+
+        await sleep(c(2e3 * Math.random()) + 4e3);
+        a++;
+        if (11 <= ++b) {
+            console.log("Sleeping to prevent getting temp blocked.");
+            b = 0;
+            await sleep(sleepTime);
+        }
+        updateProgressOnBlock(`Blocked ${d.username} - ${a}/${blockList.length}`);
+        console.log(`Blocked ${d.username} - ${a}/${blockList.length}`);
+
     }
     console.log("%c Block party complete!", "color: #bada55;font-size: 20px;");
     updateProgressOnBlock("Block party complete! 🎉");
